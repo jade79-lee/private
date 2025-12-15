@@ -10,7 +10,11 @@ import os
 import re
 import requests
 from datetime import datetime
+from typing import Tuple
 
+# Constants for environment variable names
+GITHUB_TOKEN_ENV = 'GITHUB_TOKEN'
+GITHUB_API_URL_ENV = 'GITHUB_API_URL'
 
 
 class GitHubPRDiffExtractor:
@@ -18,11 +22,13 @@ class GitHubPRDiffExtractor:
         """
         환경 변수에서 GitHub 토큰과 API Base URL을 로드합니다.
         """
-        self.git_token = os.environ.get('GITHUB_TOKEN')
-        api_base_url = os.environ.get('GITHUB_API_URL')
+        self.git_token = os.environ.get(GITHUB_TOKEN_ENV)
+        api_base_url = os.environ.get(GITHUB_API_URL_ENV)
 
-        if not self.git_token or not api_base_url:
-            raise ValueError("환경 변수 GITHUB_TOKEN와 GITHUB_API_URL를 설정해야 합니다.")
+        if not self.git_token:
+            raise ValueError(f"환경 변수 '{GITHUB_TOKEN_ENV}'가 설정되지 않았습니다.")
+        if not api_base_url:
+            raise ValueError(f"환경 변수 '{GITHUB_API_URL_ENV}'가 설정되지 않았습니다.")
 
         self.git_api_base_url = api_base_url.rstrip('/')
         self.headers = {
@@ -30,7 +36,7 @@ class GitHubPRDiffExtractor:
             'Accept': 'application/vnd.github.v3.diff'
         }
 
-    def parse_pr_url(self, pr_url: str):
+    def parse_pr_url(self, pr_url: str) -> Tuple[str, str, str]:
         """
         PR URL에서 owner, repo, pr_number 추출
         예: https://github.sec.samsung.net/GAUDI/gaudi-fe/pull/8
