@@ -19,10 +19,10 @@ class GitHubPRDiffExtractor:
         환경 변수에서 GitHub 토큰과 API Base URL을 로드합니다.
         """
         self.git_token = os.environ.get('GITHUB_TOKEN')
-        api_base_url = os.environ.get('GHE_API_URL')
+        api_base_url = os.environ.get('GITHUB_API_URL')
 
         if not self.git_token or not api_base_url:
-            raise ValueError("환경 변수 GITHUB_TOKEN와 GHE_API_URL를 설정해야 합니다.")
+            raise ValueError("환경 변수 GITHUB_TOKEN와 GITHUB_API_URL를 설정해야 합니다.")
 
         self.git_api_base_url = api_base_url.rstrip('/')
         self.headers = {
