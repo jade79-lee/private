@@ -14,24 +14,22 @@ from datetime import datetime
 
 
 class GitHubPRDiffExtractor:
-    def __init__(self):
-        # 사용자에게 직접 입력하도록 기본값은 비워둠
-        self.git_token = ""  # 여기 GitHub 토큰을 입력하세요
-        self.git_api_base_url = "https://github.sec.samsung.net/api/v3"  # 여기 API Base URL을 입력하세요
-        self.headers = {
-            'Authorization': f'Bearer {self.git_token}',
-            'Accept': 'application/vnd.github.v3.diff'  # Diff 형식 요청
-        }
+    def __init__(self, token: str = None, api_base_url: str = None):
+        """
+        GitHubPRDiffExtractor 초기화
+        :param token: GitHub API 토큰. 제공되지 않으면 GITHUB_TOKEN 환경 변수를 사용합니다.
+        :param api_base_url: GitHub API 기본 URL. 제공되지 않으면 GHE_API_URL 환경 변수 또는 기본값을 사용합니다.
+        """
+        self.git_token = token or os.environ.get("GITHUB_TOKEN")
+        self.git_api_base_url = (api_base_url or os.environ.get("GHE_API_URL", "https://github.sec.samsung.net/api/v3")).rstrip('/')
 
-    def set_credentials(self, token: str, api_base_url: str):
-        """GitHub 토큰과 API Base URL 설정"""
-        self.git_token = token
-        self.git_api_base_url = api_base_url.rstrip('/')
-        if self.git_token:
-            self.headers = {
-                'Authorization': f'token {self.git_token}',
-                'Accept': 'application/vnd.github.v3.diff'
-            }
+        if not self.git_token:
+            raise ValueError("GitHub 토큰이 제공되지 않았거나 GITHUB_TOKEN 환경 변수가 설정되지 않았습니다.")
+
+        self.headers = {
+            'Authorization': f'token {self.git_token}',
+            'Accept': 'application/vnd.github.v3.diff'
+        }
 
     def parse_pr_url(self, pr_url: str):
         """
@@ -47,8 +45,6 @@ class GitHubPRDiffExtractor:
 
     def fetch_diff(self, owner: str, repo: str, pr_number: str) -> str:
         """PR Diff(패치) 내용을 가져옵니다."""
-        if not self.git_token or not self.git_api_base_url:
-            raise ValueError("Git token과 API Base URL을 먼저 설정해주세요.")
         diff_url = f"{self.git_api_base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         try:
             response = requests.get(diff_url, headers=self.headers)
@@ -86,35 +82,43 @@ class GitHubPRDiffExtractor:
 
     def extract_diff(self, pr_url: str) -> str:
         """전체 Diff 추출 프로세스를 실행하고 파일 경로를 반환합니다."""
-        print(f"PR URL에서 Diff 추출 시작: {pr_url}")
-        owner, repo, pr_number = self.parse_pr_url(pr_url)
-        print(f"Repository: {owner}/{repo}, PR: #{pr_number}")
+        try:
+            print(f"PR URL에서 Diff 추출 시작: {pr_url}")
+            owner, repo, pr_number = self.parse_pr_url(pr_url)
+            print(f"Repository: {owner}/{repo}, PR: #{pr_number}")
 
-        diff_text = self.fetch_diff(owner, repo, pr_number)
-        print(f"Diff 길이: {len(diff_text)} 바이트")
+            diff_text = self.fetch_diff(owner, repo, pr_number)
+            print(f"Diff 길이: {len(diff_text)} 바이트")
 
-        markdown = self.generate_markdown(diff_text, pr_url)
-        return self.save_to_markdown(markdown, pr_url)
+            markdown = self.generate_markdown(diff_text, pr_url)
+            return self.save_to_markdown(markdown, pr_url)
+        except (ValueError, RuntimeError) as e:
+            print(f"오류 발생: {e}", file=sys.stderr)
+            return None
 
 
 def main():
     """메인 엔트리 포인트"""
     if len(sys.argv) != 2:
-        print("사용법: python get_pr_diff_from_github.py <PR_URL>")
-        print("예시: python get_pr_diff_from_github.py https://github.sec.samsung.net/GAUDI/gaudi-fe/pull/8")
+        print("사용법: python get_pr_diff_from_github.py <PR_URL>", file=sys.stderr)
+        print("예시: python get_pr_diff_from_github.py https://github.sec.samsung.net/GAUDI/gaudi-fe/pull/8", file=sys.stderr)
         sys.exit(1)
 
     pr_url = sys.argv[1]
 
-    extractor = GitHubPRDiffExtractor()
     try:
+        extractor = GitHubPRDiffExtractor()
         result_path = extractor.extract_diff(pr_url)
         if result_path:
             print("PR Diff 추출이 완료되었습니다.")
         else:
-            print("PR Diff 추출에 실패했습니다.")
+            print("PR Diff 추출에 실패했습니다.", file=sys.stderr)
+            sys.exit(1)
+    except ValueError as e:
+        print(f"오류: {e}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"오류 발생: {e}")
+        print(f"알 수 없는 오류 발생: {e}", file=sys.stderr)
         sys.exit(1)
 
 
