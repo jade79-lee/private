@@ -16,12 +16,9 @@ from datetime import datetime
 class GitHubPRDiffExtractor:
     def __init__(self):
         # 사용자에게 직접 입력하도록 기본값은 비워둠
-        self.git_token = ""  # 여기 GitHub 토큰을 입력하세요
-        self.git_api_base_url = "https://github.sec.samsung.net/api/v3"  # 여기 API Base URL을 입력하세요
-        self.headers = {
-            'Authorization': f'Bearer {self.git_token}',
-            'Accept': 'application/vnd.github.v3.diff'  # Diff 형식 요청
-        }
+        self.git_token = None
+        self.git_api_base_url = None
+        self.headers = {}
 
     def set_credentials(self, token: str, api_base_url: str):
         """GitHub 토큰과 API Base URL 설정"""
@@ -106,7 +103,16 @@ def main():
 
     pr_url = sys.argv[1]
 
+    token = os.environ.get("GITHUB_TOKEN")
+    api_url = os.environ.get("GHE_API_URL")
+
+    if not token or not api_url:
+        print("환경 변수 GITHUB_TOKEN과 GHE_API_URL을 설정해야 합니다.")
+        sys.exit(1)
+
     extractor = GitHubPRDiffExtractor()
+    extractor.set_credentials(token, api_url)
+
     try:
         result_path = extractor.extract_diff(pr_url)
         if result_path:
